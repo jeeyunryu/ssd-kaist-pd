@@ -6,6 +6,17 @@ __pycache__/
 # C extensions
 *.so
 
+
+/.jpg
+
+dataloader_visualize/
+img_w_bbox/
+plotted_videos/
+plotting/__pycache__/
+videos/
+videos_color_he/
+videos_he/
+
 # Distribution / packaging
 .Python
 build/
