@@ -17,6 +17,7 @@ plotting/__pycache__/
 videos/
 videos_color_he/
 videos_he/
+checkpoints/
 
 # Distribution / packaging
 .Python
