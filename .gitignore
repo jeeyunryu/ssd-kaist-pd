@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 
-/.jpg
+/*.jpg
 
 dataloader_visualize/
 img_w_bbox/
