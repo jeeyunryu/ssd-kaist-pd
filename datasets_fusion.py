@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import json
 import os
 from PIL import Image, ImageOps
-from codes_for_kaist.utils_fusion import transform
+from utils_fusion import transform
 
 from torchvision.utils import save_image
 import torchvision

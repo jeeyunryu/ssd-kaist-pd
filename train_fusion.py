@@ -2,13 +2,13 @@ import time
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-from model import SSD300, MultiBoxLoss
-from datasets_single import KaistPDDataset
+from model_fusion import SSD300, MultiBoxLoss
+from datasets_fusion import KaistPDDataset
 # from torchvision.utils import save_image
 from plotting.plot import plot_box
 # from knockknock import desktop_sender
 
-from utils import *
+from utils_fusion import *
 from tqdm import tqdm
 # from torchvision.utils import draw_bounding_boxes   
 
@@ -138,12 +138,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     # Batches
     for i, (images, images_lwir, boxes, labels, _, image_id) in enumerate(train_loader):
         data_time.update(time.time() - start)
-        # plot_box(images, boxes, labels, image_id)
-
-        
-        
-
-    
+        plot_box(images, images_lwir, boxes, labels, image_id)
+        quit()
 
         # Move to default device
         images = images.to(device)  # (batch_size (N), 3, 300, 300)

@@ -9,6 +9,43 @@ import torch
 import cv2
 import numpy as np
 import tqdm
+import torchvision
+
+# annotations 가져오기
+# fn gt id 순회해서 ...
+# gt id 에 해당하는 gt만을 저장하기 딕셔너리로 저장해야겠다
+# 각 이미지 위에 gt 그리기 이미지당 gt를 리스트로 저장하고 있어야겠다 근데 모든 gt를 저장할 필요는 없고 fn인 거에 해당하는 것만 
+
+with open('/home/urp4/workspace/codes_for_kaist/official_Evaluation/remained_FNs_edit.json', 'r') as j:
+    remained_FNs = json.load(j)
+
+with open('/home/urp4/workspace/codes_for_kaist/official_Evaluation/new_FNs.json', 'r') as j:
+    new_FNs = json.load(j)
+
+with open('/home/urp4/workspace/codes_for_kaist/official_Evaluation/kaist_annotations_test20.json', 'r') as j:
+    kaist_annotation = json.load(j)
+
+gt_info = kaist_annotation['annotations'] # list of dictionaries
+empty_dict = dict()
+
+for fnid in remained_FNs:
+    image_id = gt_info[fnid]['image_id']
+    if image_id not in empty_dict:
+        empty_dict[image_id] = []  # Initialize an empty list if key doesn't exist
+    empty_dict[image_id].append(gt_info[fnid]['bbox'])
+
+# for fnid in new_FNs:
+#     image_id = gt_info[fnid]['image_id']
+#     if image_id not in empty_dict:
+#         empty_dict[image_id] = []  # Initialize an empty list if key doesn't exist
+#     if gt_info[fnid]['bbox'] in empty_dict[image_id] :
+        
+#         continue
+#     else :
+#         empty_dict[image_id].append(gt_info[fnid]['bbox'])
+
+
+
 
 data_folder = '../../src/ssd/datasets/kaist'
 images = list()
@@ -79,14 +116,11 @@ for objects in predictions_fusion:
 with open(os.path.join(data_folder, 'test-all-20.txt')) as f:
     lines = f.read().splitlines()
 
-with open('/home/urp4/workspace/codes_for_kaist/official_Evaluation/new_FPs.json', 'r') as j:
-    new_FPs = json.load(j)
-
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v') # define codec
 prev_folder = ''
 
-dtId = 0
+# gtId = 0
 
 for i, (line) in enumerate(lines):
     split_line = line.rsplit("/", 1)
@@ -99,48 +133,53 @@ for i, (line) in enumerate(lines):
     image_lwir = Image.open(image_paths_lwir[i], mode='r')
     image_lwir = FT.to_tensor(image_lwir) 
 
-    dt_ids = []
+    # gt_ids = []
 
-    for j in range(len(p_boxes_fusion[i])):
-        dt_ids.append(dtId + j)
+    # for j in range(len(gt_boxes[i])):
+    #     gt_ids.append(gtId + j)
     
-    dtId += len(p_boxes_fusion[i])
+    # gtId += len(gt_boxes[i])
 
 
     if (folder != prev_folder):
         if (i != 0):
             out.release()
-            quit()
+            
 
-        output = './plotted_videos/newFPs/{}'.format(folder.split('/')[0])
+        output = '../plotted_videos/remainFNs6/{}'.format(folder.split('/')[0])
         os.makedirs(output, exist_ok=True)
         output = os.path.join(output, folder.split('/')[1] + '.mp4')
         
-        out = cv2.VideoWriter(output, fourcc, 5.0, (width*2, height*2))
+        out = cv2.VideoWriter(output, fourcc, 5.0, (width*2, height*3))
         prev_folder = folder
     
 
 
     gt_labelsColor = [labelsColor_gt[l] for l in gt_labels[i]]
     
-    
+    # for j, idx in enumerate(gt_ids):
+    #     if (idx in remained_FNs):
+    #         gt_labelsColor[j] = 'white'
 
     p_labelsColor = [labelsColor[l] for l in p_labels[i]]
     p_labelsColor_lwir = [labelsColor[l] for l in p_labels_lwir[i]]
     p_labelsColor_fusion = [labelsColor[l] for l in p_labels_fusion[i]]
+    
+    gt_labels[i] = [kaist_labels[l] for l in gt_labels[i]]
+    p_labels[i] = [kaist_labels[l] for l in p_labels[i]]
+    p_labels_lwir[i] = [kaist_labels[l] for l in p_labels_lwir[i]]
+    p_labels_fusion[i] = [kaist_labels[l] for l in p_labels_fusion[i]]
+    
+    image_remainFNs = image
+    image_lwir_remainFNs = image_lwir
 
-    for j, idx in enumerate(dt_ids):
-        if (idx in new_FPs):
-            p_labelsColor_fusion[j] = 'white'
-
-    # gt_labels[i] = [kaist_labels[l] for l in gt_labels[i]]
-    # p_labels[i] = [kaist_labels[l] for l in p_labels[i]]
-    # p_labels_lwir[i] = [kaist_labels[l] for l in p_labels_lwir[i]]
-    # p_labels_fusion[i] = [kaist_labels[l] for l in p_labels_fusion[i]]
+    if i in empty_dict.keys():
+        bbox_ten = torch.tensor(empty_dict[i])
+        bbox_ten = torchvision.ops.box_convert(bbox_ten, in_fmt='xywh', out_fmt = 'xyxy')
+        image_remainFNs = draw_bounding_boxes(image, bbox_ten, width=1, colors='orange')
+        image_lwir_remainFNs = draw_bounding_boxes(image_lwir, bbox_ten, width=1, colors='orange')
 
     
-    
-   
     img_single = draw_bounding_boxes(image, torch.tensor(gt_boxes[i]), labels=gt_labels[i], width=1, colors=gt_labelsColor)
     img_single = draw_bounding_boxes(img_single, torch.tensor(p_boxes[i]), labels=p_labels[i], width=1, colors=p_labelsColor)
 
@@ -153,16 +192,26 @@ for i, (line) in enumerate(lines):
     image_lwir_fusion = draw_bounding_boxes(image_lwir, torch.tensor(gt_boxes[i]), labels=gt_labels[i], width=1, colors=gt_labelsColor)
     image_lwir_fusion = draw_bounding_boxes(image_lwir_fusion, torch.tensor(p_boxes_fusion[i]), labels=p_labels_fusion[i], width=1, colors=p_labelsColor_fusion)
 
+    
+
 
     cimg_single = torch.cat([img_single, img_ir_single], dim=2) 
     cimg_fusion = torch.cat([image_fusion, image_lwir_fusion], dim=2) 
+    cimg_remainFNs = torch.cat([image_remainFNs, image_lwir_remainFNs], dim=2) 
     cimg = torch.cat([cimg_single, cimg_fusion], dim=1) 
+    cimg = torch.cat([cimg, cimg_remainFNs], dim=1) 
+
+
     
+    # image = image.permute(1, 2, 0).numpy()
+    # image = image[:, :, ::-1]
+    # image = (image*255).astype(np.uint8)
     cimg = cimg.permute(1, 2, 0).numpy()
     cimg = cimg[:, :, ::-1]
     cimg = (cimg*255).astype(np.uint8)
     
     out.write(cimg)
+    # out.write(image)
 
 
 out.release()

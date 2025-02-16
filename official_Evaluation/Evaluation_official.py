@@ -34,5 +34,5 @@ def evaluate_coco(test_json_path):
 
 if __name__ == '__main__':
 
-    test_json_path = '/home/urp4/workspace/src/codes_for_pascal/eval_files/lwir/80_base.json'   
+    test_json_path = '/home/urp4/workspace/codes_for_kaist/eval_files/color/prediction_fullepoch.json'   
     evaluate_coco(test_json_path)

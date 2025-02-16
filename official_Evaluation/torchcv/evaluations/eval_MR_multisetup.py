@@ -9,7 +9,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import scipy.io as sio
-
+import json
 # font = {'family' : 'Tahoma',        
 #         'size'   : 22}  
 # matplotlib.rc('font', **font)
@@ -107,6 +107,11 @@ class COCOeval:
         else:
             gts=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
             dts=self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
+        
+        self.gt_notig = 0
+        self.gt_notig_ids = list()
+
+        
 
         # set ignore flag
         for gt in gts:
@@ -119,10 +124,18 @@ class COCOeval:
                gbox[0] < self.params.bndRng[0] or gbox[1] < self.params.bndRng[1] or \
                gbox[0]+gbox[2] > self.params.bndRng[2] or gbox[1]+gbox[3] > self.params.bndRng[3])  else gt['ignore']
             # 범위 벗어나는 박스 무시하게 돼 있다다
+            if gt['ignore'] == 0 and gt['category_id'] == 1:
+                self.gt_notig += 1
+                self.gt_notig_ids.append(gt['id'])
+        
+        
+        with open("./gts_ids.json", "w") as j: # 무시되지 않는 gt 아이디 전부 저장
+            json.dump(self.gt_notig_ids, j)
         
         self._gts = defaultdict(list)       # gt for evaluation
         self._dts = defaultdict(list)       # dt for evaluation
 
+        
         for gt in gts:
             self._gts[gt['image_id'], gt['category_id']].append(gt) # 같은 이미지에 대해서 카테고리가 같은 박스끼리 묶임
         for dt in dts:
@@ -262,14 +275,14 @@ class COCOeval:
             else:
                 gt = [_ for cId in p.catIds for _ in self._gts[imgId,cId]]
                 dt = [_ for cId in p.catIds for _ in self._dts[imgId,cId]]
-            if len(gt) == 0 and len(dt) ==0: # 해당 imgId, catId에 대해 대응되는 GT 가 없으면서 PT 도 없을 때 None 반환 (이는 곧 아무것도 없는 이미지에 대해 모델이 아무것도 검출하지 않았다는 의미)
+            if len(gt) == 0 and len(dt) == 0: # 해당 imgId, catId에 대해 대응되는 GT 가 없으면서 PT 도 없을 때 None 반환 (이는 곧 아무것도 없는 이미지에 대해 모델이 아무것도 검출하지 않았다는 의미)
                 return None # 여기 확인 1
             
             # GT 가 없어도 DT가 있다면 통과 => GT json 에 annotation key에 대해서 GT 정보가 없던 이미지는 검출되어야 하는 게 없는 것이라는 의미
             # ... 이어서 그런데도 DT가 있다는 것은 FP인 뜻
             # DT 가 없어도 GT 가 있다면 통과
             # len(dt) == 0 -> 해당 imgId, catId 에 대해 예측된 박스가 하나도 없다는 뜻 (FN)
-
+            
             for g in gt:
                 if g['ignore']:
                     g['_ignore'] = 1
@@ -296,6 +309,8 @@ class COCOeval:
             T = len(p.iouThrs)
             G = len(gt)
             D = len(dt)
+
+            
             
             gtm  = np.zeros((T,G))
             dtm  = np.zeros((T,D))
@@ -417,8 +432,8 @@ class COCOeval:
                 
                 E = [self.evalImgs[Nk + i] for i in i_list]  # len(self.evalImgs): 2252(GT) (일부 None임), len(i_list): 2252 (num of test images)
                 # len(E): 2252
-                import pdb;pdb.set_trace()
                 
+            
                 E = [e for e in E if not e is None] # len(E): 1127 (none인 이미지: 아무것도 없는 이미지에 대해 모델이 아무것도 검출하지 않은 것, GT가 있긴 하지만 예측된 게 없는 경우) 1125개)
                 if len(E) == 0:
                     continue
@@ -439,11 +454,25 @@ class COCOeval:
 
                 inds = np.argsort(-dtScores, kind='mergesort') # sorted in desc order
 
+                
 
 
                 dtm = np.concatenate([e['dtMatches'][:, 0:maxDet] for e in E], axis=1)[:, inds] # len(dtm[0]) : 3046 (dt의 개수) / organized in dtScore order
+                
                 dtIg = np.concatenate([e['dtIgnore'][:, 0:maxDet] for e in E], axis=1)[:, inds] # len(dtIg[0]): 3046
                 gtIg = np.concatenate([e['gtIgnore'] for e in E]) # len(gtIg): 3658 (gt의 개수)
+                import pdb;pdb.set_trace()
+
+
+                # dtIds = list()
+                # inds_l = inds.tolist()
+                # dtIds = [x for e in E for x in e['dtIds'][0:maxDet]]
+                # result = [dtIds[i] for i in inds_l]
+                
+                dt_index = np.concatenate([np.array(e['dtIds'][0:maxDet]) for e in E], axis=0)[inds]
+                dt_notig_index = np.where(dtIg == 0)
+                dt_index = dt_index[dt_notig_index[1]]
+                dtm_notig = dtm[:, dt_notig_index[1]]
 
                 npig = np.count_nonzero(gtIg == 0) #  (None이 아닌 경우 1 + 2) 개수 중 ignore되지 않은 것 
                 if npig == 0:
@@ -451,17 +480,43 @@ class COCOeval:
                 tps = np.logical_and(dtm, np.logical_not(dtIg)) #ignore 하지 않기로 한 것 중 매칭된 Gt가 있는 DT에 대해서만 True 반환
                 fps = np.logical_and(np.logical_not(dtm), np.logical_not(dtIg)) # detected boxes which didn't match with gt boxes and is not intended to ignore
                 # dtm이 0인 것 매칭되지 않은 dt를 의미한다
+
+
                 inds = np.where(dtIg==0)[1] # ignore 하지 않기로 한 dt 박스 인덱스
                 tps = tps[:,inds] # ignore 하지 않기로 한 dt 박스들만의 매칭 여부 
                 fps = fps[:,inds] # len(fps[0]): 1886 is dtIg is 1 suppress
                 # numpy.count_nonzero(fps[0]) 632
                 # numpy.count_nonzero(tps[0]) 1254
+                
+                dt_tp = np.where(tps == 1)
+                dt_fp = np.where(fps == 1)
+                dt_tp_ids = dt_index[dt_tp[1]].tolist()
+                dt_fp_ids = dt_index[dt_fp[1]].tolist()
+                dtm_notig_ids = dtm_notig[:, dt_tp[1]][0].tolist() # tp와 매칭되는 gt의 아이디
+
+
+
+                # with open("./bbox_ids/IR_tps_dtm_ids.json", "w") as j:
+                #     json.dump(dtm_notig_ids, j) 
+                with open("./bbox_ids/color_TP_ids.json", "w") as j:
+                    json.dump(dt_tp_ids, j) 
+
+                with open("./bbox_ids/color_FP_ids.json", "w") as j:
+                    json.dump(dt_fp_ids, j) 
+
+                
+                noig_dtm = dtm[:, inds]
+                
 
                 tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float64)
                 fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float64) # calculate accumulated sum in each row
 
-                print('There are {} fps out of {}npigs'.format(fp_sum[0][-1], npig))
-                
+                print('TP: {}'.format(tp_sum[0][-1]))
+                print('FP: {}'.format(fp_sum[0][-1]))
+                # print('TP + FN: {}'.format(npig)) # ignore 된 것 모두 제외 (1. json 파일에 ignore = 1인 것, 2. 범위 벗어난 것 3. 높이 범위 벗어난 것)
+                print('FN: {}'.format(self.gt_notig - tp_sum[0][-1]))
+                print('Total GTs: {}'.format(self.gt_notig))
+                print('Total DTs: {}'.format(len(inds)))
 
                 # 1886개의 DT 박스에 대해서
                 # fps: array([[False, False, False, ..., False,  True,  True]])

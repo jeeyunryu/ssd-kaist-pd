@@ -3,10 +3,11 @@ from torch.utils.data import Dataset
 import json
 import os
 from PIL import Image, ImageOps
-from codes_for_kaist.utils_fusion import transform
+from utils_fusion import transform
 
 from torchvision.utils import save_image
 import torchvision
+import torchvision.transforms.functional as FT
 
 
 class KaistPDDataset(Dataset):
@@ -62,9 +63,11 @@ class KaistPDDataset(Dataset):
             difficulties = difficulties[1 - difficulties]
 
         # Apply transformations
-        image, image_lwir, boxes, labels, difficulties = transform(image, image_lwir, boxes, labels, difficulties, split=self.split)
+        image_t, image_lwir, boxes, labels, difficulties = transform(image, image_lwir, boxes, labels, difficulties, split=self.split)
 
-        return image, image_lwir, boxes, labels, difficulties, i
+        image = FT.to_tensor(image)
+
+        return image, image_t, image_lwir, boxes, labels, difficulties, i
 
     def __len__(self):
         return len(self.images)
@@ -80,8 +83,8 @@ class KaistPDDataset(Dataset):
         :param batch: an iterable of N sets from __getitem__()
         :return: a tensor of images, lists of varying-size tensors of bounding boxes, labels, and difficulties
         """
-
         images = list()
+        images_t = list()
         images_lwir = list()
         boxes = list()
         labels = list()
@@ -90,16 +93,18 @@ class KaistPDDataset(Dataset):
 
         for b in batch:
             images.append(b[0])
-            images_lwir.append(b[1])
-            boxes.append(b[2])
-            labels.append(b[3])
-            difficulties.append(b[4])
-            image_ids.append(b[5])
+            images_t.append(b[1])
+            images_lwir.append(b[2])
+            boxes.append(b[3])
+            labels.append(b[4])
+            difficulties.append(b[5])
+            image_ids.append(b[6])
             # for i in range(b[1].size(0)):
             #     image_ids.append(b[4])
 
         images = torch.stack(images, dim=0)
+        images_t = torch.stack(images_t, dim=0)
         images_lwir = torch.stack(images_lwir, dim=0)
  
 
-        return images, images_lwir, boxes, labels, difficulties, image_ids  # tensor (N, 3, 300, 300), 3 lists of N tensors each
+        return images, images_t, images_lwir, boxes, labels, difficulties, image_ids  # tensor (N, 3, 300, 300), 3 lists of N tensors each

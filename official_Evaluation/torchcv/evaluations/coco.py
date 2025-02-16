@@ -192,8 +192,9 @@ class COCO:
                     ids = set(self.catToImgs[catId])
                 else:
                     ids &= set(self.catToImgs[catId])
-        return list(ids)
-        # return [id for id in ids if id > 1456]
+        return list(ids) # 야간 및 주간 모두 고려
+        # return [id for id in ids if id > 1456] # 야간 이미지 촬영 한정
+        # return [id for id in ids if id < 1457]
 
     def loadAnns(self, ids=[]):
         """
@@ -312,6 +313,9 @@ class COCO:
             anns = resFile
         assert type(anns) == list, 'results in not an array of objects'
         annsImgIds = [ann['image_id'] for ann in anns] # 모델 예측 이미지 아이디디 (아이디 중복 됨 -> 같은 이미지에 대해 예측 박스가 여러개인)
+        
+        # annsImgIds = [id for id in annsImgIds if id > 1456] # 야간 촬영 이미지 한정 
+        # annsImgIds = [id for id in annsImgIds if id < 1457]
 
         # GT 파일에 있는 GT 박스만을 
         assert set(annsImgIds) == (set(annsImgIds) & set(self.getImgIds())), \

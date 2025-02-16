@@ -567,7 +567,7 @@ def resize(image, image_lwir, boxes, dims=(300, 300), return_percent_coords=True
     return new_image, image_lwir, new_boxes
 
 
-def photometric_distort(image):
+def photometric_distort(image, image_lwir):
     """
     Distort brightness, contrast, saturation, and hue, each with a 50% chance, in random order.
 
@@ -575,12 +575,14 @@ def photometric_distort(image):
     :return: distorted image
     """
     new_image = image
+    new_image_lwir = image_lwir
 
     distortions = [FT.adjust_brightness,
                    FT.adjust_contrast,
                    FT.adjust_saturation,
                    FT.adjust_hue]
-
+    
+    
     random.shuffle(distortions)
 
     for d in distortions:
@@ -594,9 +596,9 @@ def photometric_distort(image):
 
             # Apply this distortion
             new_image = d(new_image, adjust_factor)
+            new_image_lwir = d(new_image_lwir, adjust_factor)
 
-    return new_image
-
+    return new_image, new_image_lwir
 
 def transform(image, image_lwir, boxes, labels, difficulties, split):
     """
@@ -627,8 +629,8 @@ def transform(image, image_lwir, boxes, labels, difficulties, split):
     # Skip the following operations for evaluation/testing
     if split == 'TRAIN':
         # A series of photometric distortions in random order, each with 50% chance of occurrence, as in Caffe repo
-        new_image = photometric_distort(new_image)
-        new_image_lwir = photometric_distort(new_image_lwir)
+        new_image, new_image_lwir  = photometric_distort(new_image, new_image_lwir)
+        # 
 
         # Convert PIL image to Torch tensor
         new_image = FT.to_tensor(new_image)
@@ -657,6 +659,7 @@ def transform(image, image_lwir, boxes, labels, difficulties, split):
     # Convert PIL image to Torch tensor
     new_image = FT.to_tensor(new_image)
     new_image_lwir = FT.to_tensor(new_image_lwir)
+
 
     # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
     new_image = FT.normalize(new_image, mean=mean, std=std)

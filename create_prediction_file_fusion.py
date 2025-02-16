@@ -3,7 +3,7 @@ import torch
 import json
 import os
 from PIL import Image, ImageDraw, ImageFont
-from datasets_single import KaistPDDataset
+from datasets_fusion import KaistPDDataset
 from tqdm import tqdm
 # from plot_predictedB import plot_box
 
@@ -17,7 +17,7 @@ width = 640
 height = 512
 
 # Load model checkpoint
-checkpoint = '/home/urp4/workspace/src/codes_for_pascal/checkpoints_kaist/visible/80_he.pth.tar'
+checkpoint = '/home/urp4/workspace/codes_for_kaist/checkpoints/fusion/80_halfway.pth.tar'
 checkpoint = torch.load(checkpoint)
 start_epoch = checkpoint['epoch'] + 1
 print('\nLoaded checkpoint from epoch %d.\n' % start_epoch)
@@ -41,7 +41,7 @@ res_list = list()
 predictions = list()
 
 
-def detect(img_id, image, min_score, max_overlap, top_k):
+def detect(img_id, image, image_lwir, min_score, max_overlap, top_k):
     """
     Detect objects in an image with a trained SSD300, and visualize the results.
 
@@ -59,9 +59,10 @@ def detect(img_id, image, min_score, max_overlap, top_k):
 
     # Move to default device
     image = image.to(device)
+    image_lwir = image_lwir.to(device)
 
     # Forward prop.
-    predicted_locs, predicted_scores = model(image)
+    predicted_locs, predicted_scores = model(image, image_lwir)
 
     # Detect objects in SSD output
     det_boxes, det_labels, det_scores = model.detect_objects(predicted_locs, predicted_scores, min_score=min_score,
@@ -150,8 +151,8 @@ def detect(img_id, image, min_score, max_overlap, top_k):
     
 if __name__ == '__main__':
 
-    for i, (image, boxes, labels, difficulties, image_id) in enumerate(tqdm(test_loader)):
-        detect(image_id, image, min_score=0.2, max_overlap=0.5, top_k=200)
+    for i, (image, image_lwir, boxes, labels, difficulties, image_id) in enumerate(tqdm(test_loader)):
+        detect(image_id, image, image_lwir, min_score=0.2, max_overlap=0.5, top_k=200)
     
     
     # os.makedirs('./eval_files/lwir', exist_ok=True)

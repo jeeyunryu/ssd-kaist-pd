@@ -26,13 +26,13 @@ height = 300
 # width = 640
 # height = 512
 
-def plot_box(images, boxes, labels, image_id):
+def plot_box(images, images_lwir, boxes, labels, image_id):
 
     
 
-    global img
+    global img, img_lwir, img_both
 
-    for img, boxes, labels, image_id in zip(images, boxes, labels, image_id):
+    for img, img_lwir, boxes, labels, image_id in zip(images, images_lwir, boxes, labels, image_id):
         
         
         # annotated_image = to_pil_image(img)
@@ -56,6 +56,8 @@ def plot_box(images, boxes, labels, image_id):
             # box = box.tolist()
 
             img = draw_bounding_boxes(img, box, width=5, colors="green", fill=True) 
+            img_lwir = draw_bounding_boxes(img_lwir, box, width=5, colors="green", fill=True) 
+            img_both = torch.cat([img, img_lwir], dim=2) 
             
 
             # draw.rectangle(xy=box, outline=label_color_map[label])
@@ -75,16 +77,12 @@ def plot_box(images, boxes, labels, image_id):
         # totensor = torchvision.transforms.ToTensor()
         # tensor_img = totensor(annotated_image)
 
-        path = './images_from_loader'
+        path = './distort_diff'
         os.makedirs(path, exist_ok=True)
         
-        save_image(img, os.path.join(path,'img{}.jpg'.format(image_id)))
+        save_image(img_both, os.path.join(path,'img{}.jpg'.format(image_id)))
     print('all plotted.')
 
 
 
     return None
-
-if __name__ == '__main__':
-    # image, boxes, labels, _, _  = next(iter(train.main.train_loader))
-    plot_box(image, boxes, labels)

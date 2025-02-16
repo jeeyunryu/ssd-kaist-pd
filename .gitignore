@@ -18,6 +18,11 @@ videos/
 videos_color_he/
 videos_he/
 checkpoints/
+distort_diff/
+distort_same/
+official_Evaluation/bbox_ids/
+prediction_files/fusion/
+official_Evaluation/*.json
 
 # Distribution / packaging
 .Python

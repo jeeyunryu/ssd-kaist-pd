@@ -2,13 +2,13 @@ import time
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-from model import SSD300, MultiBoxLoss
+from codes_for_kaist.model_single import SSD300, MultiBoxLoss
 from datasets_single import KaistPDDataset
 # from torchvision.utils import save_image
 from plotting.plot import plot_box
 # from knockknock import desktop_sender
 
-from utils import *
+from codes_for_kaist.utils_single import *
 from tqdm import tqdm
 # from torchvision.utils import draw_bounding_boxes   
 
