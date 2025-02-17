@@ -466,8 +466,8 @@ class SSD300(nn.Module):
         iv_day = iv_softmax[:, 1]
         
         # gated fusion layer
-        w = iv_day / (1 + self.alpha * torch.exp(-((iv_day - 0.5) / self.beta)))
-        w_lwir = 1 - w
+        w = iv_day / (1 + self.alpha.clone() * torch.exp(-((iv_day - 0.5) / self.beta.clone())))
+        w_lwir = 1 - w.clone()
 
         w_unsqzd = w[:, None, None]
         w_lwir_unsqzd = w_lwir[:, None, None]

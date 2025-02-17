@@ -177,7 +177,8 @@ def train(train_loader, model, criterion, criterion_illum, optimizer, optimizer_
         
         # Backward prop.
         optimizer.zero_grad()
-        loss.backward(retain_graph=True)
+        loss_clone = loss.clone()
+        loss_clone.backward(retain_graph=True)
     
 
         # Clip gradients, if necessary
